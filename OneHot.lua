@@ -8,26 +8,25 @@ function OneHot:__init(outputSize)
    self.outputSize = outputSize
 end
 
+local function distributeOneHot(input, output)
+    if torch.type(input) == 'number' then
+        if input ~= 0 then
+            output[input]=1
+        end
+    else
+        for i=1,input:size()[1] do
+            distributeOneHot(input[i],output[i])
+        end
+    end
+end
+
 function OneHot:updateOutput(input)
    local size = input:size():totable()
    table.insert(size, self.outputSize)
-   
    self.output:resize(unpack(size)):zero()
-   
-   size[input:dim()+1] = 1
-   local input_ = input:view(unpack(size))
-   
-   if torch.type(input) == 'torch.CudaTensor' or torch.type(input) == 'torch.ClTensor' then
-      self.output:scatter(self.output:dim(), input_, 1)
-   else
-      if torch.type(input) ~= 'torch.LongTensor' then
-         self._input = self._input or torch.LongTensor()
-         self._input:resize(input_:size()):copy(input_)
-         input_ = self._input
-      end
-      self.output:scatter(self.output:dim(), input_, 1)
-   end
-   
+
+   distributeOneHot(input,self.output)
+
    return self.output
 end
 
