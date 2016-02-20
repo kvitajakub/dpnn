@@ -3,26 +3,32 @@ local OneHot, parent = torch.class('nn.OneHot', 'nn.Module')
 -- adapted from https://github.com/karpathy/char-rnn
 -- and https://github.com/hughperkins/char-rnn-er
 
+--do not break with input "0" and do not add another tensor dimension,
+-- just make last one bigger => dont break LSTM with minibatches
+
 function OneHot:__init(outputSize)
    parent.__init(self)
    self.outputSize = outputSize
 end
 
-local function distributeOneHot(input, output)
-    if torch.type(input) == 'number' then
-        if input ~= 0 then
-            output[input]=1
-        end
-    else
-        for i=1,input:size()[1] do
-            distributeOneHot(input[i],output[i])
-        end
-    end
-end
 
 function OneHot:updateOutput(input)
+
+    function distributeOneHot(input, output)
+        for i=1,input:size()[1] do
+            if torch.type(input[i]) == 'number' then
+                if input[i] ~= 0 then
+                    output[input[i]]=1
+                end
+            else
+                distributeOneHot(input[i],output[i])
+            end
+        end
+    end
+
    local size = input:size():totable()
-   table.insert(size, self.outputSize)
+   -- table.insert(size, self.outputSize)
+   size[#size] = self.outputSize
    self.output:resize(unpack(size)):zero()
 
    distributeOneHot(input,self.output)
